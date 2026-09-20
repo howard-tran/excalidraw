@@ -89,6 +89,10 @@ export default defineConfig(({ mode }) => {
             "../packages/laser-pointer/src/index.ts",
           ),
         },
+        {
+          find: /^@excalimath\/core$/,
+          replacement: path.resolve(__dirname, "../packages/excalimath/src/index.ts"),
+        },
       ],
     },
     build: {
@@ -223,7 +227,7 @@ export default defineConfig(({ mode }) => {
               },
             },
           ],
-          maximumFileSizeToCacheInBytes: 2.3 * 1024 ** 2, // 2.3MB
+          maximumFileSizeToCacheInBytes: 10 * 1024 ** 2, // 10MB
         },
         manifest: {
           short_name: "Excalidraw",

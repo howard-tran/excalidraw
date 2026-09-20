@@ -1,0 +1,68 @@
+{
+  "name": "@excalidraw/excalimath",
+  "version": "0.18.0",
+  "type": "module",
+  "types": "./dist/types/excalimath/src/index.d.ts",
+  "main": "./dist/prod/index.js",
+  "module": "./dist/prod/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/types/excalimath/src/index.d.ts",
+      "development": "./dist/dev/index.js",
+      "production": "./dist/prod/index.js",
+      "default": "./dist/prod/index.js"
+    },
+    "./*": {
+      "types": "./dist/types/excalimath/src/*.d.ts",
+      "development": "./dist/dev/index.js",
+      "production": "./dist/prod/index.js",
+      "default": "./dist/prod/index.js"
+    }
+  },
+  "files": [
+    "dist/*"
+  ],
+  "description": "Math companion plugin for Excalidraw — equations, graphs, and shape libraries.",
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "keywords": [
+    "excalidraw",
+    "excalimath",
+    "math",
+    "equations",
+    "graphs",
+    "latex"
+  ],
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not ie <= 11",
+      "not op_mini all",
+      "not safari < 12",
+      "not kaios <= 2.5",
+      "not edge < 79",
+      "not chrome < 70",
+      "not and_uc < 13",
+      "not samsung < 10"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "bugs": "https://github.com/excalidraw/excalidraw/issues",
+  "repository": "https://github.com/excalidraw/excalidraw",
+  "scripts": {
+    "gen:types": "rimraf types && tsc",
+    "build:esm": "rimraf dist && node ../../scripts/buildBase.js && yarn gen:types"
+  },
+  "dependencies": {
+    "katex": "^0.16.0",
+    "mathjs": "^15.1.1",
+    "plotly.js-dist-min": "^3.5.0"
+  }
+}

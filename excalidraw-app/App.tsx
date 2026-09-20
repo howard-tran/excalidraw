@@ -148,6 +148,8 @@ import "./index.scss";
 
 import { ExcalidrawPlusPromoBanner } from "./components/ExcalidrawPlusPromoBanner";
 import { AppSidebar } from "./components/AppSidebar";
+import { ExcaliMath } from "@excalimath/core";
+import type { ExcalimathSceneData } from "@excalimath/core";
 
 import type { CollabAPI } from "./collab/Collab";
 
@@ -875,6 +877,11 @@ const ExcalidrawWrapper = () => {
     [],
   );
 
+  const handleSaveExcaliMath = useCallback((data: ExcalimathSceneData) => {
+    // In a real app, persist this to localStorage, a server, etc.
+    console.log("[ExcaliMath] Scene saved:", data.elements.length, "elements");
+  }, []);  
+
   // const onExport = () => {
   //   return new Promise((r) => setTimeout(r, 2500));
   //   // console.log("onExport");
@@ -1000,9 +1007,15 @@ const ExcalidrawWrapper = () => {
           return (
             <div className="excalidraw-ui-top-right">
               {excalidrawAPI?.getEditorInterface().formFactor === "desktop" && (
-                <ExcalidrawPlusPromoBanner
-                  isSignedIn={isExcalidrawPlusSignedUser}
-                />
+                // <ExcalidrawPlusPromoBanner
+                //   isSignedIn={isExcalidrawPlusSignedUser}
+                // />
+                <ExcaliMath
+                  excalidrawAPI={excalidrawAPI}
+                  enabledPlugins={["equation", "graph", "library"]}
+                  theme="auto"
+                  onSave={handleSaveExcaliMath}
+                />                
               )}
 
               {collabError.message && <CollabError collabError={collabError} />}
