@@ -183,8 +183,7 @@ export function App() {
 | `excalidrawAPI` | `ExcalidrawImperativeAPI` | required | The Excalidraw API ref |
 | `enabledPlugins` | `Array<"equation" \| "graph" \| "library">` | all enabled | Which plugins to show |
 | `theme` | `"light" \| "dark" \| "auto"` | `"auto"` | Theme override |
-| `initialData` | `ExcalimathSceneData` | — | Load a saved scene with auto-restore |
-| `onSave` | `(data) => void` | — | Called on every insert/update for persistence |
+| `onSave` | `(data: ExcalimathSceneData) => void` | — | Called on every insert/update for persistence |
 
 ## Project structure
 
