@@ -15,7 +15,7 @@
 <div align="center">
   <h2>
     An open source virtual hand-drawn style whiteboard. </br>
-    Collaborative and end-to-end encrypted. </br>
+    Collaborative, end-to-end encrypted, <b>and math-ready.</b> </br>
   <br />
   </h2>
 </div>
@@ -49,9 +49,40 @@
   </figure>
 </div>
 
-## Features
+## About this fork
 
-The Excalidraw editor (npm package) supports:
+This repository is the official [Excalidraw](https://github.com/excalidraw/excalidraw) codebase with **ExcaliMath** features merged directly in. ExcaliMath — originally a standalone companion plugin by [Tamer](https://github.com/tamerUAE) — adds equations, graphs, and STEM shape libraries natively into the Excalidraw editor.
+
+Everything from upstream is preserved. The math features are offered as drop-in plugins that ship with the app and are also available as a standalone npm package (`@excalimath/core`).
+
+## ExcaliMath Features
+
+### Equation Layer
+- **Visual toolbar** — click to insert fractions, integrals, Greek letters, matrices, and more. No LaTeX syntax knowledge needed.
+- Write LaTeX directly or use the toolbar — live preview as you type via KaTeX.
+- Click any equation on the canvas to reopen and edit it.
+- 40+ pre-built expressions across 9 categories.
+- Graceful error handling with clear parse-error messages.
+
+### Graph Layer
+- Plot functions like `sin(x)`, `x^2 + 2*x` with safe evaluation via mathjs (never uses `eval()`).
+- Up to 5 colour-coded functions per graph.
+- Configurable axes: range, labels, grid, tick intervals.
+- Transparent or custom background colour.
+- CSV data import for scatter and line plots.
+- 7 preset templates: linear, parabola, trig, unit circle, number line, exponential, absolute value.
+- Click-to-edit restores full graph configuration.
+
+### Shape Libraries
+- **Geometry** (K-10): Triangles, circles, polygons, coordinate grid, number line, protractor.
+- **Algebra** (Gr 3-10): Fraction bars, algebra tiles, Venn diagrams, function machine.
+- **Statistics** (Gr 5-12): Bar chart, pie chart, histogram, scatter plot, box plot.
+- **Physics / Circuits** (Gr 8-12): 30 components — resistors, capacitors, transistors (NPN/PNP), all 7 logic gates, meters, diodes, and more.
+- **Biology** (Gr 5-12): Cell diagrams, DNA helix, mitosis stages, food web.
+- **Chemistry** (Gr 7-12): Bohr atom, periodic table tile, bond types, lab equipment.
+- Search across all packs, toggle packs on/off, import custom `.excalidrawlib` files.
+
+## Core Excalidraw Features
 
 - 💯&nbsp;Free & open-source.
 - 🎨&nbsp;Infinite, canvas-based whiteboard.
@@ -82,9 +113,18 @@ We'll be adding these features as drop-in plugins for the npm package in the fut
 
 ## Quick start
 
-**Note:** following instructions are for installing the Excalidraw [npm package](https://www.npmjs.com/package/@excalidraw/excalidraw) when integrating Excalidraw into your own app. To run the repository locally for development, please refer to our [Development Guide](https://docs.excalidraw.com/docs/introduction/development).
+### Running locally
 
-Use `npm` or `yarn` to install the package.
+```bash
+git clone https://github.com/howard-tran/excalidraw.git
+cd excalidraw
+yarn install
+yarn dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to see the editor with ExcaliMath enabled.
+
+### Integrating as an npm package
 
 ```bash
 npm install react react-dom @excalidraw/excalidraw
@@ -92,7 +132,91 @@ npm install react react-dom @excalidraw/excalidraw
 yarn add react react-dom @excalidraw/excalidraw
 ```
 
-Check out our [documentation](https://docs.excalidraw.com/docs/@excalidraw/excalidraw/installation) for more details!
+For more details, see the [Excalidraw documentation](https://docs.excalidraw.com/docs/@excalidraw/excalidraw/installation).
+
+### Using ExcaliMath standalone
+
+```bash
+npm install @excalimath/core
+```
+
+```tsx
+import { useState, useCallback } from "react";
+import { Excalidraw } from "@excalidraw/excalidraw";
+import { ExcaliMath } from "@excalimath/core";
+import type { ExcalimathSceneData } from "@excalimath/core";
+
+export function App() {
+  const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null);
+
+  const handleExcalidrawAPI = useCallback((api: any) => {
+    setExcalidrawAPI(api);
+  }, []);
+
+  const handleSave = useCallback((data: ExcalimathSceneData) => {
+    // In a real app, persist this to localStorage, a server, etc.
+    console.log("[ExcaliMath] Scene saved:", data.elements.length, "elements");
+  }, []);
+
+  return (
+    <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
+      <Excalidraw
+        excalidrawAPI={handleExcalidrawAPI}
+        renderTopRightUI={() =>
+          excalidrawAPI ? (
+            <ExcaliMath
+              excalidrawAPI={excalidrawAPI}
+              enabledPlugins={["equation", "graph", "library"]}
+              theme="auto"
+              onSave={handleSave}
+            />
+          ) : null
+        }
+      />
+    </div>
+  );
+}
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `excalidrawAPI` | `ExcalidrawImperativeAPI` | required | The Excalidraw API ref |
+| `enabledPlugins` | `Array<"equation" \| "graph" \| "library">` | all enabled | Which plugins to show |
+| `theme` | `"light" \| "dark" \| "auto"` | `"auto"` | Theme override |
+| `initialData` | `ExcalimathSceneData` | — | Load a saved scene with auto-restore |
+| `onSave` | `(data) => void` | — | Called on every insert/update for persistence |
+
+## Project structure
+
+```
+excalidraw/
+├── excalidraw-app/          Web app (excalidraw.com)
+├── packages/
+│   ├── excalidraw/          Core editor component
+│   ├── excalimath/          Math companion plugin (equations, graphs, shapes)
+│   │   └── src/
+│   │       ├── core/        Element factory, state bridge, round-trip save/load
+│   │       ├── plugins/     Equation (KaTeX), Graph (Plotly), Geometry (shape packs)
+│   │       └── ui/          ExcaliMath sidebar, panels, theme tokens
+│   ├── math/                Low-level math utilities (@excalidraw/math)
+│   ├── element/             Element type definitions
+│   ├── common/              Shared types and utilities
+│   ├── utils/               Common utilities
+│   ├── fractional-indexing/ Ordering library
+│   └── laser-pointer/       Laser pointer overlay
+└── scripts/                 Build and dev scripts
+```
+
+## Tech stack
+
+| Concern | Library |
+|---------|---------|
+| Equation rendering | KaTeX 0.16+ |
+| Graph plotting | Plotly.js (SVG mode) |
+| Function evaluation | mathjs (safe — no `eval()`) |
+| Framework | React 18 |
+| Build | Vite + TypeScript (strict) |
+| Desktop (optional) | Electrobun |
 
 ## Contributing
 
@@ -100,14 +224,10 @@ Check out our [documentation](https://docs.excalidraw.com/docs/@excalidraw/excal
 - Want to contribute? Check out our [contribution guide](https://docs.excalidraw.com/docs/introduction/contributing) or let us know on [Discord](https://discord.gg/UexuTaE).
 - Want to help with translations? See the [translation guide](https://docs.excalidraw.com/docs/introduction/contributing#translating).
 
-## Integrations
+## Credits
 
-- [VScode extension](https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor)
-- [npm package](https://www.npmjs.com/package/@excalidraw/excalidraw)
-
-## Who's integrating Excalidraw
-
-[Google Cloud](https://googlecloudcheatsheet.withgoogle.com/architecture) • [Meta](https://meta.com/) • [CodeSandbox](https://codesandbox.io/) • [Obsidian Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) • [Replit](https://replit.com/) • [Slite](https://slite.com/) • [Notion](https://notion.so/) • [HackerRank](https://www.hackerrank.com/) • and many others
+- **Excalidraw** — the core whiteboard editor, maintained by the [Excalidraw team](https://github.com/excalidraw).
+- **ExcaliMath** — math companion plugin, created by [Tamer](https://github.com/tamerUAE) at ITWorx EdTech. ([Original repo](https://github.com/tamerUAE/excalimath))
 
 ## Sponsors & support
 
