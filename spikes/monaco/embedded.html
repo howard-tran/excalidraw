@@ -184,13 +184,13 @@
       [...editor.getDomNode().querySelectorAll(".view-lines > .view-line")]
         .map((line) => {
           const clone = line.cloneNode(true);
-          clone.removeAttribute("style");
-          clone.classList.remove("view-line");
+          // clone.removeAttribute("style");
+          // clone.classList.remove("view-line");
           return clone.outerHTML;
         }).join("\n");
 
     require.config({
-      paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs" }
+      paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.57.0/min/vs" }
     });
 
     require(["vs/editor/editor.main"], function (monaco) {
