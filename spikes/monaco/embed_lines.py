@@ -5,7 +5,6 @@ JSON-escaped lines joined with "\n", sourced from embedded.html.
 Usage: python3 embed_lines.py
 """
 
-import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -24,8 +23,18 @@ def to_lines(text: str) -> list[str]:
     return lines + [""] if had_trailing_newline else lines
 
 
+def to_template_literal(line: str) -> str:
+    escaped = (
+        line.replace("\\", "\\\\")
+        .replace("`", "\\`")
+        .replace("${", "\\${")
+        .replace("\"\\${", "\"${")
+    )
+    return f"`{escaped}`"
+
+
 def build_constant(lines: list[str]) -> str:
-    elements = "".join(f"  {json.dumps(line, ensure_ascii=False)},\n" for line in lines)
+    elements = "".join(f"  {to_template_literal(line)},\n" for line in lines)
     return f"{START_MARKER}[\n{elements}].join(\"\\n\");"
 
 

@@ -145,7 +145,7 @@
   <div id="editor"></div>
   <!-- <div id="output">Output will appear here…</div> -->
 
-  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+  <script src="${monacoLoaderUrl}"></script>
   <script>
     const samples = {
       javascript: `function greet(name) {\n  return \`Hello, \${name}!\`;\n}\n\nconsole.log(greet("Monaco"));\n`,
@@ -190,7 +190,7 @@
         }).join("\n");
 
     require.config({
-      paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.57.0/min/vs" }
+      paths: { vs: "${monacoVsUrl}" }
     });
 
     require(["vs/editor/editor.main"], function (monaco) {
