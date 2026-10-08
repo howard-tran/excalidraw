@@ -2,14 +2,28 @@ import { createRoot } from "react-dom/client";
 import * as monaco from 'monaco-editor/editor/editor.main.js';
 // relative path: monaco-editor 0.57's `exports` map blocks `monaco-editor/min/...`
 // (it maps `./*` -> `./esm/vs/*.js`), so bypass the bare specifier.
-import monacoLoaderUrl from "../../../node_modules/monaco-editor/min/vs/loader.js?url";
+
+const calMonacoLoaderUrl = async () => {
+  // supported by default monaco-editor package patch
+  const { default: monacoLoaderUrl } = await import("monaco-editor/min/loader.js?url");
+  return monacoLoaderUrl.replace(/[^/]*$/, ""); // .../min/vs/
+}
+
+const calMonacoLoaderUrl_2 = async () => {
+  // do not need patch
+  const {default: monacoESMUrl } = await import("monaco-editor/editor/editor.main.js?url");
+  const pkgMinRoot = monacoESMUrl.slice(0, monacoESMUrl.indexOf("monaco-editor/") + "monaco-editor/".length);
+  return pkgMinRoot + "min/vs/";
+}
+
+const monacoVsUrl = await calMonacoLoaderUrl();
+const monacoLoaderUrl = monacoVsUrl + "/loader.js";
 
 // absolute (dev + build) URL of the AMD loader, e.g.
 // /@fs/.../node_modules/monaco-editor/min/vs/loader.js
 
-console.log(monacoLoaderUrl);
-console.log(monaco);
-const monacoVsUrl = monacoLoaderUrl.replace(/[^/]*$/, ""); // .../min/vs/
+// const monacoVsUrl = 
+// console.log(monacoVsUrl);
 
 const iframeHtml = `<!DOCTYPE html>
 <html lang="en">

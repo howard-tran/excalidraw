@@ -1,0 +1,16 @@
+diff --git a/node_modules/monaco-editor/package.json b/node_modules/monaco-editor/package.json
+index 16a47e7..37fb410 100644
+--- a/node_modules/monaco-editor/package.json
++++ b/node_modules/monaco-editor/package.json
+@@ -43,7 +43,10 @@
+       "require": "./min/vs/index.js"
+     },
+     "./*.js": "./esm/vs/*.js",
+-    "./*": "./esm/vs/*.js"
++    "./*": "./esm/vs/*.js",
++    "./min": "./min/vs/index.js",
++    "./min/*.js": "./min/vs/*.js",
++    "./min/*": "./min/vs/*.js"
+   },
+   "repository": {
+     "type": "git",
