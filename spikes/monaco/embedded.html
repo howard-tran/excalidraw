@@ -173,7 +173,7 @@
       try {
         localStorage.setItem(STORAGE_KEY, value);
         document.getElementById("status").textContent = "Saved";
-        console.log(getHighlightedHtml(value));
+        // console.log(getHighlightedHtml(value));
       } catch (err) {
         document.getElementById("status").textContent = "Save failed";
         console.error(err);
@@ -219,6 +219,11 @@
       document.getElementById("saveBtn").addEventListener("click", (e) => {
         saveValue(editor.getValue());
         const model = editor.getModel();
+        const code = model.getValue();
+        const colorHtml = monaco.editor.colorize(code, "javascript", { theme: "vs-light" });
+        colorHtml.then((html) => {
+          console.log(html);
+        });
       });
 
       document.addEventListener("keydown", (e) => {
