@@ -33,6 +33,38 @@
     }
     header button:hover { background: #505050; }
     #editor { flex: 1; min-height: 0; }
+    .panes {
+      display: flex;
+      gap: 2px;
+      width: 100%;
+      min-height: 0;
+    }
+    #testPane {
+      flex: 1;
+      width: 100%;
+      height: 300px;
+      border: 1px solid #555;
+      overflow: auto;
+      padding: 8px;
+      background: #fff;
+      color: #1e1e1e;
+      font-family: monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+    #testPane2 {
+      flex: 1;
+      width: 100%;
+      height: 300px;
+      border: 1px solid #555;
+      overflow: auto;
+      padding: 8px;
+      background: #fff;
+      color: #1e1e1e;
+      font-family: monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
     #output {
       height: 120px;
       overflow: auto;
@@ -45,6 +77,7 @@
       border-top: 1px solid #333;
     }
   </style>
+  <link rel="stylesheet" href="/vs-light.css">
 </head>
 <body>
   <header>
@@ -143,6 +176,10 @@
   </header>
 
   <div id="editor"></div>
+  <div class="panes">
+    <div id="testPane"></div>
+    <div id="testPane2"></div>
+  </div>
   <!-- <div id="output">Output will appear here…</div> -->
 
   <script src="${monacoLoaderUrl}"></script>
@@ -173,21 +210,45 @@
       try {
         localStorage.setItem(STORAGE_KEY, value);
         document.getElementById("status").textContent = "Saved";
-        // console.log(getHighlightedHtml(value));
       } catch (err) {
         document.getElementById("status").textContent = "Save failed";
         console.error(err);
       }
     };
 
-    const getHighlightedHtml = () =>
-      [...editor.getDomNode().querySelectorAll(".view-lines > .view-line")]
-        .map((line) => {
-          const clone = line.cloneNode(true);
-          // clone.removeAttribute("style");
-          // clone.classList.remove("view-line");
-          return clone.outerHTML;
-        }).join("\n");
+    const getHighlightedHtml = () => {
+      const viewLines = editor.getDomNode().querySelector(".view-lines");
+      if (!viewLines) {
+        return "";
+      }
+
+      // clone the parent div so its .view-line children come along
+      const clone = viewLines.cloneNode(true);
+
+      // only these classes are kept, everything else (mtk*, view-line, ...) is removed
+      const BRACKET_CLASS_RE = /^(bracket-highlighting-\d+|unexpected-closing-bracket)$/;
+
+      const keepBracketClasses = (el) => {
+        const kept = [...el.classList].filter((cls) => BRACKET_CLASS_RE.test(cls));
+        if (kept.length) {
+          el.className = kept.join(" ");
+        }
+      };
+
+      // strip classes on every element, strip style on every div (parent included)
+      const cleanElement = (el) => {
+        keepBracketClasses(el);
+        if (el.tagName === "DIV") {
+          el.removeAttribute("style");
+        }
+      };
+
+      cleanElement(clone);
+      clone.querySelectorAll("div, span").forEach(cleanElement);
+
+      // return the child .view-line divs as a list
+      return [...clone.children].filter((el) => el.tagName === "DIV");
+    };
 
     require.config({
       paths: { vs: "${monacoVsUrl}" }
@@ -223,7 +284,16 @@
         const colorHtml = monaco.editor.colorize(code, "javascript", { theme: "vs-light" });
         colorHtml.then((html) => {
           console.log(html);
+          const div = document.createElement("div");
+          div.innerHTML = html;
+          document.getElementById("testPane").appendChild(div);
         });
+        const div = document.createElement("div");
+        const childrenDivs = getHighlightedHtml();
+        for (const child of childrenDivs) {
+          div.appendChild(child);
+        }
+        document.getElementById("testPane2").appendChild(div);
       });
 
       document.addEventListener("keydown", (e) => {

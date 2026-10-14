@@ -1,0 +1,64 @@
+/* ==== theme: vs-light (base: vs, monaco-editor@0.57.0, colorMap size 25) ==== */
+
+.mtk1 { color: #000000; }
+.mtk2 { color: #fffffe; }
+.mtk3 { color: #808080; }
+.mtk4 { color: #ff0000; }
+.mtk5 { color: #0451a5; }
+.mtk6 { color: #0000ff; }
+.mtk7 { color: #098658; }
+.mtk8 { color: #008000; }
+.mtk9 { color: #dd0000; }
+.mtk10 { color: #383838; }
+.mtk11 { color: #cd3131; }
+.mtk12 { color: #863b00; }
+.mtk13 { color: #af00db; }
+.mtk14 { color: #800000; }
+.mtk15 { color: #e00000; }
+.mtk16 { color: #3030c0; }
+.mtk17 { color: #666666; }
+.mtk18 { color: #778899; }
+.mtk19 { color: #c700c7; }
+.mtk20 { color: #a31515; }
+.mtk21 { color: #4f76ac; }
+.mtk22 { color: #008080; }
+.mtk23 { color: #001188; }
+.mtk24 { color: #4864aa; }
+.mtki { font-style: italic; }
+.mtkb { font-weight: bold; }
+.mtku { text-decoration: underline; text-underline-position: under; }
+.mtks { text-decoration: line-through; }
+.mtks.mtku { text-decoration: underline line-through; text-underline-position: under; }
+
+/* ==== bracket highlighting: 30 levels (cycle of 3: #0431fa, #319331, #7b3814) ==== */
+.unexpected-closing-bracket { color: rgba(255, 18, 18, 0.8); }
+.bracket-highlighting-0 { color: #0431fa; }
+.bracket-highlighting-1 { color: #319331; }
+.bracket-highlighting-2 { color: #7b3814; }
+.bracket-highlighting-3 { color: #0431fa; }
+.bracket-highlighting-4 { color: #319331; }
+.bracket-highlighting-5 { color: #7b3814; }
+.bracket-highlighting-6 { color: #0431fa; }
+.bracket-highlighting-7 { color: #319331; }
+.bracket-highlighting-8 { color: #7b3814; }
+.bracket-highlighting-9 { color: #0431fa; }
+.bracket-highlighting-10 { color: #319331; }
+.bracket-highlighting-11 { color: #7b3814; }
+.bracket-highlighting-12 { color: #0431fa; }
+.bracket-highlighting-13 { color: #319331; }
+.bracket-highlighting-14 { color: #7b3814; }
+.bracket-highlighting-15 { color: #0431fa; }
+.bracket-highlighting-16 { color: #319331; }
+.bracket-highlighting-17 { color: #7b3814; }
+.bracket-highlighting-18 { color: #0431fa; }
+.bracket-highlighting-19 { color: #319331; }
+.bracket-highlighting-20 { color: #7b3814; }
+.bracket-highlighting-21 { color: #0431fa; }
+.bracket-highlighting-22 { color: #319331; }
+.bracket-highlighting-23 { color: #7b3814; }
+.bracket-highlighting-24 { color: #0431fa; }
+.bracket-highlighting-25 { color: #319331; }
+.bracket-highlighting-26 { color: #7b3814; }
+.bracket-highlighting-27 { color: #0431fa; }
+.bracket-highlighting-28 { color: #319331; }
+.bracket-highlighting-29 { color: #7b3814; }

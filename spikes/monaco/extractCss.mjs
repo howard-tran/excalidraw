@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * extractCss.mjs — offline regeneration of the `.mtkN` color rules for a
- * monaco-editor standalone theme (no DOM, no bundler).
+ * extractCss.mjs — offline regeneration of the `.mtkN` color rules **and** the
+ * `.bracket-highlighting-N` (bracket pair colorization) rules for a monaco-editor
+ * standalone theme (no DOM, no bundler).
  *
  * Reference: `.doc/01.md` §15 / §15.3.1 ("Offline / Node script").
  *
@@ -19,6 +20,13 @@
  *   node extractCss.mjs ./my-theme.json     # custom `defineTheme` data
  *   node extractCss.mjs vs --refresh        # force re-copy of the esm mirror
  *
+ * Bracket colors are produced by
+ * `esm/vs/editor/common/model/bracketPairsTextModelPart/colorizedBracketPairsDecorationProvider.js:76-95`:
+ * a theming participant walks `editorBracketHighlight.foreground1..6`, drops
+ * undefined/transparent entries, then emits
+ * `.monaco-editor .bracket-highlighting-${level % 30} { color: <cycle> }` for
+ * level 0..29 (the `% 30` is `ColorProvider.getInlineClassNameOfLevel`, line 93).
+ *
  * The output is only valid for the exact monaco build it was generated from
  * (`.doc/01.md` §15.4): ship theme + CSS together, never mix indices across
  * themes.
@@ -29,7 +37,6 @@ import path from 'node:path';
 import url from 'node:url';
 
 const here = path.dirname(url.fileURLToPath(import.meta.url));
-console.log(here);
 
 // ---------------------------------------------------------------------------
 // Locate monaco-editor and mirror its `esm/` tree as ESM
@@ -86,11 +93,27 @@ function ensureMirror(refresh) {
 
 async function loadMonaco(refresh) {
   ensureMirror(refresh);
-  const [tokenization, themes] = await Promise.all([
-    import(url.pathToFileURL(path.join(mirrorEsm, 'vs/editor/common/languages/supports/tokenization.js')).href),
-    import(url.pathToFileURL(path.join(mirrorEsm, 'vs/editor/standalone/common/themes.js')).href),
+  const imp = (p) => import(url.pathToFileURL(path.join(mirrorEsm, p)).href);
+  const [tokenization, themes, colorUtils, platform, color, editorColorRegistry] = await Promise.all([
+    imp('vs/editor/common/languages/supports/tokenization.js'),
+    imp('vs/editor/standalone/common/themes.js'),
+    // Registers the color registry into `Registry` (colorUtils.js:95) and
+    // exports `Extensions.ColorContribution` + `resolveColorValue`.
+    imp('vs/platform/theme/common/colorUtils.js'),
+    imp('vs/platform/registry/common/platform.js'),
+    imp('vs/base/common/color.js'),
+    // Side-effect import: registers `editorBracketHighlight.foreground1..6`
+    // (editorColorRegistry.js:74-77). themes.js pulls it in too, but be explicit.
+    imp('vs/editor/common/core/editorColorRegistry.js'),
   ]);
-  return { ...tokenization, ...themes };
+  return {
+    ...tokenization,
+    ...themes,
+    ...colorUtils,
+    Registry: platform.Registry,
+    Color: color.Color,
+    _editorColorRegistry: editorColorRegistry,
+  };
 }
 
 // builtin theme name -> export name in esm/vs/editor/standalone/common/themes.js
@@ -136,6 +159,100 @@ function loadThemeFile(file) {
     throw new Error(`extractCss: ${file} has no \`base\` field (expected 'vs' | 'vs-dark' | ...)`);
   }
   return [name, data];
+}
+
+// ---------------------------------------------------------------------------
+// Bracket pair colorization: `.bracket-highlighting-N` (levels 0..29)
+// ---------------------------------------------------------------------------
+
+// ColorProvider.getInlineClassNameOfLevel — `level % 30`
+// (colorizedBracketPairsDecorationProvider.js:93)
+const BRACKET_LEVEL_COUNT = 30;
+
+// registerThemingParticipant color list (colorizedBracketPairsDecorationProvider.js:78-84)
+const BRACKET_LEVEL_COLOR_IDS = [
+  'editorBracketHighlight.foreground1',
+  'editorBracketHighlight.foreground2',
+  'editorBracketHighlight.foreground3',
+  'editorBracketHighlight.foreground4',
+  'editorBracketHighlight.foreground5',
+  'editorBracketHighlight.foreground6',
+];
+const UNEXPECTED_BRACKET_COLOR_ID = 'editorBracketHighlight.unexpectedBracket.foreground';
+
+/** Maps `IStandaloneThemeData.base` -> `ColorScheme`, mirroring
+ *  `StandaloneTheme.get type()` (standaloneThemeService.js:110-115). */
+function themeTypeOf(base) {
+  switch (base) {
+    case 'vs': return 'light';
+    case 'hc-black': return 'hcDark';
+    case 'hc-light': return 'hcLight';
+    default: return 'dark'; // 'vs-dark' and anything else
+  }
+}
+
+/** Resolves a theme color the way `StandaloneTheme.getColor()` does
+ *  (standaloneThemeService.js:87-106): explicit `colors` override first, then
+ *  the registered default for this theme type (`resolveDefaultColor`).
+ *  Default values may reference other colour ids, hence the recursive
+ *  `getColor` shim (`resolveColorValue`, colorUtils.js:170-188). */
+function resolveThemeColor(mod, themeData, colorId, seen = new Set()) {
+  if (seen.has(colorId)) return undefined;
+  seen.add(colorId);
+
+  const override = themeData.colors?.[colorId];
+  if (override) return mod.Color.fromHex(override);
+
+  if (themeData.inherit) {
+    // StandaloneTheme.getColors() splices in the base theme's colours
+    // (standaloneThemeService.js:69-81).
+    const baseExport = BUILTIN[themeData.base];
+    const baseData = baseExport ? mod[baseExport] : null;
+    const inherited = baseData?.colors?.[colorId];
+    if (inherited) return mod.Color.fromHex(inherited);
+  }
+
+  const themeLike = {
+    type: themeTypeOf(themeData.base),
+    getColor: (id) => resolveThemeColor(mod, themeData, id, seen),
+  };
+  return mod.Registry.as(mod.Extensions.ColorContribution).resolveDefaultColor(colorId, themeLike);
+}
+
+/** Reproduces the theming participant's CSS output
+ *  (colorizedBracketPairsDecorationProvider.js:76-95), for levels 0..29. */
+function generateBracketHighlightCSS(mod, themeData) {
+  const colorValues = BRACKET_LEVEL_COLOR_IDS.map((id) => resolveThemeColor(mod, themeData, id))
+    .filter((c) => !!c)
+    .filter((c) => !c.isTransparent());
+
+  const rules = [];
+  const unexpected = resolveThemeColor(mod, themeData, UNEXPECTED_BRACKET_COLOR_ID);
+  if (unexpected) {
+    // rules.push(`.monaco-editor .unexpected-closing-bracket { color: ${unexpected}; }`);
+    rules.push(`.unexpected-closing-bracket { color: ${unexpected}; }`);
+  }
+
+  if (colorValues.length === 0) {
+    // monaco emits `color: undefined` for every level here (NaN index); that is
+    // invalid CSS, so note it instead of writing a broken rule.
+    rules.push(
+      '/* no non-transparent editorBracketHighlight.foregroundN colour: monaco emits `color: undefined` for all levels */',
+    );
+  } else {
+    for (let level = 0; level < BRACKET_LEVEL_COUNT; level++) {
+      const color = colorValues[level % colorValues.length];
+      // rules.push(`.monaco-editor .bracket-highlighting-${level} { color: ${color}; }`);
+      rules.push(`.bracket-highlighting-${level} { color: ${color}; }`);
+    }
+  }
+
+  const palette = colorValues.map((c) => c.toString()).join(', ') || '(none)';
+  return (
+    `/* ==== bracket highlighting: ${BRACKET_LEVEL_COUNT} levels (cycle of ${colorValues.length}: ${palette}) ==== */\n` +
+    rules.join('\n') +
+    '\n'
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -196,11 +313,13 @@ for (const name of wanted) {
     }
     themeName = name;
     themeData = mod[exportName];
+    console.log(themeData);
   }
   const colorMap = tokenThemeOf(mod.TokenTheme, themeData).getColorMap();
   chunks.push(
     `/* ==== theme: ${themeName} (base: ${themeData.base}, monaco-editor@${monacoPkg.version}, colorMap size ${colorMap.length}) ==== */\n` +
-      mod.generateTokensCSSForColorMap(colorMap),
+      mod.generateTokensCSSForColorMap(colorMap) + "\n\n" +
+      generateBracketHighlightCSS(mod, themeData),
   );
 }
 
