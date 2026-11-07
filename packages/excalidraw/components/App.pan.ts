@@ -44,6 +44,8 @@ export class AppPan {
     private dependencies: {
       /** pointers currently down (a two-finger gesture is not a pan) */
       getPointerCount: () => number;
+      /** a scrollbar being dragged (App's own drag, not a pan session) */
+      isDraggingScrollBar: () => boolean;
     },
   ) {}
 
@@ -54,6 +56,17 @@ export class AppPan {
   setSpaceHeld = (held: boolean) => {
     this.spaceHeld = held;
   };
+
+  /**
+   * Whether the pointer is navigating the viewport rather than acting on the
+   * scene — space held to pan, a pan in progress, a scrollbar drag, or the
+   * hand tool. Hover and cursor then belong to the navigation.
+   */
+  isNavigating = () =>
+    this.spaceHeld ||
+    this.active ||
+    this.dependencies.isDraggingScrollBar() ||
+    isHandToolActive(this.app.state);
 
   /** applies the pointer move still waiting for its frame, if any */
   flushMove = () => {
@@ -181,7 +194,7 @@ export class AppPan {
          * - empty clipboard
          */
         const enableNextPaste = () => {
-          setTimeout(() => {
+          app.ownerWindow.setTimeout(() => {
             app.ownerDocument.body.removeEventListener(
               EVENT.PASTE,
               preventNextPaste,
@@ -204,7 +217,7 @@ export class AppPan {
         scrollX: state.scrollX - deltaX / state.zoom.value,
         scrollY: state.scrollY - deltaY / state.zoom.value,
       }));
-    });
+    }, app.ownerWindow);
     this.pendingMoveFlush = onPointerMove.flush;
     const teardown = withBatchedUpdates(
       (upEvent?: PointerEvent | FocusEvent) => {

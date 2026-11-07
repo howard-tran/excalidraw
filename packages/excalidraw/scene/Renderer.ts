@@ -18,7 +18,7 @@ import type {
 
 import type { Scene } from "@excalidraw/element";
 
-import { renderStaticSceneThrottled } from "../renderer/staticScene";
+import { cancelStaticSceneThrottle } from "../renderer/staticScene";
 
 import type { RenderableElementsMap } from "./types";
 
@@ -360,8 +360,16 @@ export class Renderer {
 
   public getRenderableElements = (opts: GetRenderableElementsOpts) => {
     const { newElement } = opts;
+    // A new element being drag-sized is mutated in place without informing
+    // the scene, so `sceneNonce` doesn't move. Fold the element's own nonce
+    // in where a canvas draws it from the live element but memoizes on this
+    // nonce: a framed new element stays in the static canvas' element map
+    // (see getRenderableElementsMap), and a new text gets its dashed text box
+    // drawn by the interactive canvas (it doubles as `editingTextElement`).
     const canvasNonce = `${this.scene.getSceneNonce()}${
-      newElement?.frameId ? `:${newElement.versionNonce}` : ""
+      newElement?.frameId || isTextElement(newElement)
+        ? `:${newElement.versionNonce}`
+        : ""
     }`;
 
     const ret = this._getRenderableElements({
@@ -408,8 +416,8 @@ export class Renderer {
 
   // NOTE Doesn't destroy everything (scene, rc, etc.) because it may not be
   // safe to break TS contract here (for upstream cases)
-  public destroy() {
-    renderStaticSceneThrottled.cancel();
+  public destroy(staticCanvas: HTMLCanvasElement) {
+    cancelStaticSceneThrottle(staticCanvas);
     this._getRenderableElements.clear();
     this._getVisibleElementsWithRenderOffsets.clear();
   }
