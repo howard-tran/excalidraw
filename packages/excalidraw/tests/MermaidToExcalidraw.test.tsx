@@ -5,6 +5,8 @@ import { Excalidraw } from "../index";
 import { mockMermaidToExcalidraw } from "./helpers/mocks";
 import { getTextEditor, updateTextEditor } from "./queries/dom";
 import { render, waitFor } from "./test-utils";
+import { pointFrom } from "@excalidraw/math";
+import type { LocalPoint } from "@excalidraw/math";
 
 // Mock CodeMirror deps so the dynamic import of CodeMirrorEditor fails,
 // causing TTDDialogInput to fall back to <textarea> in tests.
@@ -61,8 +63,10 @@ mockMermaidToExcalidraw({
               y: 44,
               strokeWidth: 2,
               points: [
-                [0, 0],
-                [0, 50],
+                pointFrom<LocalPoint>(0, 0),
+                pointFrom<LocalPoint>(0, 50),
+                // [0, 0],
+                // [0, 50],
               ],
               roundness: {
                 type: 2,
