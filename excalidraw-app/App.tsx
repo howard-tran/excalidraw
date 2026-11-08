@@ -888,7 +888,7 @@ const ExcalidrawWrapper = () => {
   const handleSaveExcaliMath = useCallback((data: ExcalimathSceneData) => {
     // In a real app, persist this to localStorage, a server, etc.
     console.log("[ExcaliMath] Scene saved:", data.elements.length, "elements");
-  }, []);  
+  }, []);
 
   // const onExport = () => {
   //   return new Promise((r) => setTimeout(r, 2500));
@@ -1018,13 +1018,15 @@ const ExcalidrawWrapper = () => {
                 // <ExcalidrawPlusPromoBanner
                 //   isSignedIn={isExcalidrawPlusSignedUser}
                 // />
-                <ExcaliMath
-                  excalidrawAPI={excalidrawAPI}
-                  enabledPlugins={["equation", "graph", "library"]}
-                  theme="auto"
-                  onSave={handleSaveExcaliMath}
-                />                
+                <></>
               )}
+
+              <ExcaliMath
+                excalidrawAPI={excalidrawAPI}
+                enabledPlugins={["equation", "graph", "library"]}
+                theme="auto"
+                onSave={handleSaveExcaliMath}
+              />
 
               {collabError.message && <CollabError collabError={collabError} />}
               <LiveCollaborationTrigger
