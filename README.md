@@ -53,7 +53,7 @@
 
 This repository is the official [Excalidraw](https://github.com/excalidraw/excalidraw) codebase with **ExcaliMath** features merged directly in. ExcaliMath — originally a standalone companion plugin by [Tamer](https://github.com/tamerUAE) — adds equations, graphs, and STEM shape libraries natively into the Excalidraw editor.
 
-Everything from upstream is preserved. The math features are offered as drop-in plugins that ship with the app and are also available as a standalone npm package (`@excalimath/core`).
+Everything from upstream is preserved. The math features are offered as drop-in plugins that ship with the app and are also available as a standalone npm package (`packages/excalimath`).
 
 ## ExcaliMath Features
 
