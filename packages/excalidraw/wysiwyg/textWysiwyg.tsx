@@ -867,6 +867,35 @@ export const textWysiwyg = ({
     };
   }
 
+  /** pairs that wrap the current selection when typed over it */
+  const SELECTION_WRAP_PAIRS: Record<string, readonly [string, string]> = {
+    "(": ["(", ")"],
+    "[": ["[", "]"],
+    "{": ["{", "}"],
+    "<": ["<", ">"],
+    '"': ['"', '"'],
+    "'": ["'", "'"],
+    "`": ["`", "`"],
+  };
+
+  /**
+   * Programmatic edit path (smart newline, selection wrap, indent/outdent):
+   * sets value + selection in one step (assigning `value` clobbers the
+   * selection), then fires `input` so the normal onChange → scene-update
+   * pipeline runs — including `normalizeText`, which keeps only `\n` and
+   * spaces (tabs → 8 spaces), so the indents written here survive intact.
+   */
+  const applyTextEdit = (
+    nextValue: string,
+    selectionStart: number,
+    selectionEnd: number,
+  ) => {
+    editable.value = nextValue;
+    editable.selectionStart = selectionStart;
+    editable.selectionEnd = selectionEnd;
+    editable.dispatchEvent(new Event("input"));
+  };
+
   editable.onkeydown = (event) => {
     if (!event.shiftKey && actionZoomIn.keyTest(event)) {
       event.preventDefault();
@@ -919,6 +948,67 @@ export const textWysiwyg = ({
       }
       // We must send an input event to resize the element
       editable.dispatchEvent(new Event("input"));
+    } else if (
+      event.key === KEYS.ENTER &&
+      // plain / shift Enter — Cmd+Enter submits above; IME confirmation
+      // must stay native (keyCode 229 = legacy IME guard)
+      !event[KEYS.CTRL_OR_CMD] &&
+      !event.altKey &&
+      !event.isComposing &&
+      event.keyCode !== 229
+    ) {
+      // smart newline: inherit the line's indent, deepen one level after an
+      // opener (`{ [ (`), and drop a closer found later on the line onto its
+      // own (base-indent) line — the `{|}` → block-with-caret convention
+      event.preventDefault();
+      const { value, selectionStart, selectionEnd } = editable;
+      const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
+      const lineBefore = value.slice(lineStart, selectionStart);
+      const lineIndent = (/^[ \t]*/.exec(lineBefore) as RegExpExecArray)[0];
+      const contentIndent =
+        lineIndent +
+        (/[(\[{]\s*$/.test(lineBefore) ? " ".repeat(TAB_SIZE) : "");
+      const lineEnd = value.indexOf("\n", selectionEnd);
+      const rest = value.slice(
+        selectionEnd,
+        lineEnd === -1 ? undefined : lineEnd,
+      );
+      const insert =
+        `\n${contentIndent}` +
+        (/^[ \t]*[)\]}]/.test(rest) ? `\n${lineIndent}` : "");
+      const caret = selectionStart + 1 + contentIndent.length;
+      applyTextEdit(
+        value.slice(0, selectionStart) + insert + value.slice(selectionEnd),
+        caret,
+        caret,
+      );
+    } else if (
+      SELECTION_WRAP_PAIRS[event.key] &&
+      // modifiers other than shift would be a chord, not a wrap; repeats
+      // would nest a pair per frame while the key is held
+      !event[KEYS.CTRL_OR_CMD] &&
+      !event.altKey &&
+      !event.repeat &&
+      !event.isComposing &&
+      event.keyCode !== 229 &&
+      // only wraps over a selection — bare typing stays native (so an
+      // apostrophe in prose is never auto-paired)
+      editable.selectionStart !== editable.selectionEnd
+    ) {
+      // type `(`/`"`/… over a selection → wrap it instead of replacing it;
+      // the inner text stays selected so wraps can nest (`(` then `"`)
+      event.preventDefault();
+      const [open, close] = SELECTION_WRAP_PAIRS[event.key];
+      const { value, selectionStart, selectionEnd } = editable;
+      applyTextEdit(
+        value.slice(0, selectionStart) +
+          open +
+          value.slice(selectionStart, selectionEnd) +
+          close +
+          value.slice(selectionEnd),
+        selectionStart + 1,
+        selectionEnd + 1,
+      );
     }
   };
 

@@ -952,6 +952,142 @@ describe("textWysiwyg", () => {
       expect(textarea.value).toEqual(`Line#1\nLine#2`);
     });
 
+    it("should inherit the line's indent on Enter", () => {
+      textarea.value = "  Line#1\nLine#2";
+      // cursor: "  Line#|1\nLine#2"
+      textarea.selectionStart = 8;
+      textarea.selectionEnd = 8;
+
+      fireEvent.keyDown(textarea, { key: KEYS.ENTER });
+
+      // cursor: "  Line#1\n  | \nLine#2"
+      expect(textarea.value).toEqual("  Line#1\n  \nLine#2");
+      expect(textarea.selectionStart).toEqual(11);
+      expect(textarea.selectionEnd).toEqual(11);
+    });
+
+    it("should indent one level deeper after an opener on Enter", () => {
+      textarea.value = "  fn() {";
+      // cursor: "  fn() {|"
+      textarea.selectionStart = 8;
+      textarea.selectionEnd = 8;
+
+      fireEvent.keyDown(textarea, { key: KEYS.ENTER });
+
+      expect(textarea.value).toEqual(`  fn() {\n${" ".repeat(6)}`);
+      expect(textarea.selectionStart).toEqual(15);
+      expect(textarea.selectionEnd).toEqual(15);
+    });
+
+    it("should drop a closer onto its own line on Enter", () => {
+      textarea.value = "{}";
+      // cursor: "{|}"
+      textarea.selectionStart = 1;
+      textarea.selectionEnd = 1;
+
+      fireEvent.keyDown(textarea, { key: KEYS.ENTER });
+
+      // cursor: "{\n    | \n}"
+      expect(textarea.value).toEqual("{\n    \n}");
+      expect(textarea.selectionStart).toEqual(6);
+      expect(textarea.selectionEnd).toEqual(6);
+    });
+
+    it("should keep the closer's original indent when splitting it off", () => {
+      textarea.value = "  { }";
+      // cursor: "  {| }"
+      textarea.selectionStart = 3;
+      textarea.selectionEnd = 3;
+
+      fireEvent.keyDown(textarea, { key: KEYS.ENTER });
+
+      // the content line indents one level; the closer keeps its own
+      // leading space after the newline + line indent → `\n   }`
+      expect(textarea.value).toEqual(`  {\n${" ".repeat(6)}\n   }`);
+      expect(textarea.selectionStart).toEqual(10);
+      expect(textarea.selectionEnd).toEqual(10);
+    });
+
+    it("should behave natively on Enter with nothing special around it", () => {
+      textarea.value = "abc";
+      // cursor: "a|bc"
+      textarea.selectionStart = 1;
+      textarea.selectionEnd = 1;
+
+      fireEvent.keyDown(textarea, { key: KEYS.ENTER });
+
+      expect(textarea.value).toEqual("a\nbc");
+      expect(textarea.selectionStart).toEqual(2);
+      expect(textarea.selectionEnd).toEqual(2);
+    });
+
+    it("should wrap the selection in parens when typing ( over it", () => {
+      textarea.value = "abc";
+      textarea.selectionStart = 0;
+      textarea.selectionEnd = 3;
+
+      fireEvent.keyDown(textarea, { key: "(" });
+
+      expect(textarea.value).toEqual("(abc)");
+      // inner text stays selected so wraps can nest
+      expect(textarea.selectionStart).toEqual(1);
+      expect(textarea.selectionEnd).toEqual(4);
+    });
+
+    it("should nest wraps when typed over an already-wrapped selection", () => {
+      textarea.value = "abc";
+      textarea.selectionStart = 0;
+      textarea.selectionEnd = 3;
+
+      fireEvent.keyDown(textarea, { key: "(" });
+      fireEvent.keyDown(textarea, { key: '"' });
+
+      // the selection is the inner `abc` after the first wrap, so the
+      // second pair goes inside the parens: ("|abc|") → ("abc")
+      expect(textarea.value).toEqual(`("abc")`);
+      expect(textarea.selectionStart).toEqual(2);
+      expect(textarea.selectionEnd).toEqual(5);
+    });
+
+    it("should wrap the selection in brackets/quotes alike", () => {
+      textarea.value = "abc";
+      textarea.selectionStart = 0;
+      textarea.selectionEnd = 3;
+
+      fireEvent.keyDown(textarea, { key: "[" });
+
+      expect(textarea.value).toEqual("[abc]");
+    });
+
+    it("should not wrap when there is no selection", () => {
+      textarea.value = "abc";
+      // cursor: "a|bc"
+      textarea.selectionStart = 1;
+      textarea.selectionEnd = 1;
+
+      fireEvent.keyDown(textarea, { key: "(" });
+
+      // untouched — bare typing stays native (an apostrophe in prose must
+      // never be auto-paired either)
+      expect(textarea.value).toEqual("abc");
+      expect(textarea.selectionStart).toEqual(1);
+      expect(textarea.selectionEnd).toEqual(1);
+    });
+
+    it("should replace a selection with smart-newline content", () => {
+      textarea.value = "  one two";
+      // cursor selects "two": "  one |t.w.o" → "  one |"
+      textarea.selectionStart = 6;
+      textarea.selectionEnd = 9;
+
+      fireEvent.keyDown(textarea, { key: KEYS.ENTER });
+
+      expect(textarea.value).toEqual("  one \n  ");
+      // caret = selectionStart (6) + "\n" (1) + indent (2)
+      expect(textarea.selectionStart).toEqual(9);
+      expect(textarea.selectionEnd).toEqual(9);
+    });
+
     it("should resize text via shortcuts while in wysiwyg", () => {
       textarea.value = "abc def";
       const origFontSize = textElement.fontSize;
