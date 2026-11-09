@@ -860,6 +860,9 @@ export const textWysiwyg = ({
         editable.selectionStart = selectionStart;
         editable.selectionEnd = selectionStart;
       }
+      // first indent wins: lock the indent width once the user has made
+      // one (manually typed spaces, Tab, or smart newline)
+      lockIndentSize();
       onChange(editable.value);
       // once the update, and any scroll it made (see
       // AppText.handleTextWysiwyg), is in the app's state
@@ -967,7 +970,7 @@ export const textWysiwyg = ({
       const lineIndent = (/^[ \t]*/.exec(lineBefore) as RegExpExecArray)[0];
       const contentIndent =
         lineIndent +
-        (/[(\[{]\s*$/.test(lineBefore) ? " ".repeat(TAB_SIZE) : "");
+        (/[(\[{]\s*$/.test(lineBefore) ? " ".repeat(getIndentSize()) : "");
       const lineEnd = value.indexOf("\n", selectionEnd);
       const rest = value.slice(
         selectionEnd,
@@ -1012,10 +1015,36 @@ export const textWysiwyg = ({
     }
   };
 
-  const TAB_SIZE = 4;
-  const TAB = " ".repeat(TAB_SIZE);
-  const RE_LEADING_TAB = new RegExp(`^ {1,${TAB_SIZE}}`);
+  const DEFAULT_INDENT_SIZE = 4;
+
+  /** first line with leading spaces → its width (the indent unit) */
+  const detectIndentSize = (text: string): number | null => {
+    for (const line of text.split("\n")) {
+      const match = /^( +)/.exec(line);
+      if (match) {
+        return match[1].length;
+      }
+    }
+    return null;
+  };
+
+  /**
+   * Smart indent: the indent width is decided by the first indent —
+   * already present when the editor opens, or the first one the user
+   * creates (typed spaces, Tab, smart newline) — and every subsequent
+   * indent/outdent/smart-newline follows it. Always spaces, never `\t`.
+   */
+  let indentSize: number | null = detectIndentSize(editable.value);
+  const getIndentSize = () => indentSize ?? DEFAULT_INDENT_SIZE;
+  const lockIndentSize = () => {
+    if (indentSize === null) {
+      indentSize = detectIndentSize(editable.value);
+    }
+  };
+
   const indent = () => {
+    const size = getIndentSize();
+    const tab = " ".repeat(size);
     const { selectionStart, selectionEnd } = editable;
     const linesStartIndices = getSelectedLinesStartIndices();
 
@@ -1024,55 +1053,61 @@ export const textWysiwyg = ({
       const startValue = value.slice(0, startIndex);
       const endValue = value.slice(startIndex);
 
-      value = `${startValue}${TAB}${endValue}`;
+      value = `${startValue}${tab}${endValue}`;
     });
 
     editable.value = value;
+    // the spaces just inserted may be the first indent made in this
+    // editor — adopt them as the indent unit if none was locked yet
+    lockIndentSize();
 
-    editable.selectionStart = selectionStart + TAB_SIZE;
-    editable.selectionEnd = selectionEnd + TAB_SIZE * linesStartIndices.length;
+    editable.selectionStart = selectionStart + size;
+    editable.selectionEnd = selectionEnd + size * linesStartIndices.length;
   };
 
   const outdent = () => {
+    const size = getIndentSize();
     const { selectionStart, selectionEnd } = editable;
     const linesStartIndices = getSelectedLinesStartIndices();
-    const removedTabs: number[] = [];
+    const removed: { index: number; length: number }[] = [];
 
     let value = editable.value;
     linesStartIndices.forEach((startIndex) => {
-      const tabMatch = value
-        .slice(startIndex, startIndex + TAB_SIZE)
-        .match(RE_LEADING_TAB);
+      const spacesMatch = /^ +/.exec(
+        value.slice(startIndex, startIndex + size),
+      );
 
-      if (tabMatch) {
+      if (spacesMatch) {
         const startValue = value.slice(0, startIndex);
-        const endValue = value.slice(startIndex + tabMatch[0].length);
+        const endValue = value.slice(startIndex + spacesMatch[0].length);
 
-        // Delete a tab from the line
+        // Delete up to one indent unit of spaces from the line
         value = `${startValue}${endValue}`;
-        removedTabs.push(startIndex);
+        removed.push({ index: startIndex, length: spacesMatch[0].length });
       }
     });
 
     editable.value = value;
 
-    if (removedTabs.length) {
-      if (selectionStart > removedTabs[removedTabs.length - 1]) {
-        editable.selectionStart = Math.max(
-          selectionStart - TAB_SIZE,
-          removedTabs[removedTabs.length - 1],
-        );
-      } else {
-        // If the cursor is before the first tab removed, ex:
-        // Line| #1
-        //     Line #2
-        // Lin|e #3
-        // we should reset the selectionStart to his initial value.
-        editable.selectionStart = selectionStart;
+    if (removed.length) {
+      // shift the selection by how much was actually removed before it
+      let removedBeforeStart = 0;
+      let removedBeforeEnd = 0;
+      for (const { index, length } of removed) {
+        if (index < selectionStart) {
+          removedBeforeStart += length;
+        }
+        if (index < selectionEnd) {
+          removedBeforeEnd += length;
+        }
       }
+      editable.selectionStart = Math.max(
+        0,
+        selectionStart - removedBeforeStart,
+      );
       editable.selectionEnd = Math.max(
         editable.selectionStart,
-        selectionEnd - TAB_SIZE * removedTabs.length,
+        selectionEnd - removedBeforeEnd,
       );
     }
   };
