@@ -860,9 +860,6 @@ export const textWysiwyg = ({
         editable.selectionStart = selectionStart;
         editable.selectionEnd = selectionStart;
       }
-      // first indent wins: lock the indent width once the user has made
-      // one (manually typed spaces, Tab, or smart newline)
-      lockIndentSize();
       onChange(editable.value);
       // once the update, and any scroll it made (see
       // AppText.handleTextWysiwyg), is in the app's state
@@ -1015,32 +1012,9 @@ export const textWysiwyg = ({
     }
   };
 
+  // fixed indent width — always 4 spaces, never `\t`
   const DEFAULT_INDENT_SIZE = 4;
-
-  /** first line with leading spaces → its width (the indent unit) */
-  const detectIndentSize = (text: string): number | null => {
-    for (const line of text.split("\n")) {
-      const match = /^( +)/.exec(line);
-      if (match) {
-        return match[1].length;
-      }
-    }
-    return null;
-  };
-
-  /**
-   * Smart indent: the indent width is decided by the first indent —
-   * already present when the editor opens, or the first one the user
-   * creates (typed spaces, Tab, smart newline) — and every subsequent
-   * indent/outdent/smart-newline follows it. Always spaces, never `\t`.
-   */
-  let indentSize: number | null = detectIndentSize(editable.value);
-  const getIndentSize = () => indentSize ?? DEFAULT_INDENT_SIZE;
-  const lockIndentSize = () => {
-    if (indentSize === null) {
-      indentSize = detectIndentSize(editable.value);
-    }
-  };
+  const getIndentSize = () => DEFAULT_INDENT_SIZE;
 
   const indent = () => {
     const size = getIndentSize();
@@ -1057,9 +1031,6 @@ export const textWysiwyg = ({
     });
 
     editable.value = value;
-    // the spaces just inserted may be the first indent made in this
-    // editor — adopt them as the indent unit if none was locked yet
-    lockIndentSize();
 
     editable.selectionStart = selectionStart + size;
     editable.selectionEnd = selectionEnd + size * linesStartIndices.length;
