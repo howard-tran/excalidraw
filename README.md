@@ -51,9 +51,15 @@
 
 ## About this fork
 
-This repository is the official [Excalidraw](https://github.com/excalidraw/excalidraw) codebase with **ExcaliMath** features merged directly in. ExcaliMath — originally a standalone companion plugin by [Tamer](https://github.com/tamerUAE) — adds equations, graphs, and STEM shape libraries natively into the Excalidraw editor.
+I want to make this repository a "visual" code editor.
+During my work i often use excalidraw to scratch out my programming flow.
+Now i want to support intense coding and some math into this canvas, this is a real visual code editor!
 
-Everything from upstream is preserved. The math features are offered as drop-in plugins that ship with the app and are also available as a standalone npm package (`packages/excalimath`).
++ Code syntax highlight support
++ Smart indent + selection wrap for normal text area
++ Latex math
+
+I make a promise to myself, i'll keep this fork up to date with the upstream. I love this software so much, if the upstream getting bloated one day the community can count on me! 
 
 ## ExcaliMath Features
 
