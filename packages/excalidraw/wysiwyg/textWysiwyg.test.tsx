@@ -966,7 +966,7 @@ describe("textWysiwyg", () => {
       expect(textarea.selectionEnd).toEqual(11);
     });
 
-    it("should indent one level deeper after an opener on Enter", () => {
+    it("should just inherit the indent after an opener with no closer on Enter", () => {
       textarea.value = "  fn() {";
       // cursor: "  fn() {|"
       textarea.selectionStart = 8;
@@ -974,9 +974,11 @@ describe("textWysiwyg", () => {
 
       fireEvent.keyDown(textarea, { key: KEYS.ENTER });
 
-      expect(textarea.value).toEqual(`  fn() {\n${" ".repeat(6)}`);
-      expect(textarea.selectionStart).toEqual(15);
-      expect(textarea.selectionEnd).toEqual(15);
+      // no closer later on the line → not a pair, so no deepen: the new
+      // line just inherits the line's indent
+      expect(textarea.value).toEqual("  fn() {\n  ");
+      expect(textarea.selectionStart).toEqual(11);
+      expect(textarea.selectionEnd).toEqual(11);
     });
 
     it("should drop a closer onto its own line on Enter", () => {
@@ -1006,6 +1008,65 @@ describe("textWysiwyg", () => {
       expect(textarea.value).toEqual(`  {\n${" ".repeat(6)}\n   }`);
       expect(textarea.selectionStart).toEqual(10);
       expect(textarea.selectionEnd).toEqual(10);
+    });
+
+    it("should move the caret between the pair when Enter is pressed after it", () => {
+      textarea.value = "{}";
+      // cursor: "{}|"
+      textarea.selectionStart = 2;
+      textarea.selectionEnd = 2;
+
+      fireEvent.keyDown(textarea, { key: KEYS.ENTER });
+
+      // the closer is pulled behind the caret first, then split off exactly
+      // like `{|}` → `{\n    | \n}`
+      expect(textarea.value).toEqual("{\n    \n}");
+      expect(textarea.selectionStart).toEqual(6);
+      expect(textarea.selectionEnd).toEqual(6);
+    });
+
+    it("should keep the line's indent when splitting a closed pair off", () => {
+      textarea.value = "  {}";
+      // cursor: "  {}|"
+      textarea.selectionStart = 4;
+      textarea.selectionEnd = 4;
+
+      fireEvent.keyDown(textarea, { key: KEYS.ENTER });
+
+      // content indents one level; the closer drops onto its own line at
+      // the base indent → `  {\n      | \n  }`
+      expect(textarea.value).toEqual(`  {\n${" ".repeat(6)}\n  }`);
+      expect(textarea.selectionStart).toEqual(10);
+      expect(textarea.selectionEnd).toEqual(10);
+    });
+
+    it("should just inherit the indent when Enter follows a lone closer", () => {
+      textarea.value = "  }";
+      // cursor: "  }|"
+      textarea.selectionStart = 3;
+      textarea.selectionEnd = 3;
+
+      fireEvent.keyDown(textarea, { key: KEYS.ENTER });
+
+      // no opener before it — not a pair, so no deepen and no split
+      expect(textarea.value).toEqual("  }\n  ");
+      expect(textarea.selectionStart).toEqual(6);
+      expect(textarea.selectionEnd).toEqual(6);
+    });
+
+    it("should not drop a closer with no opener before the caret", () => {
+      textarea.value = "abc }";
+      // cursor: "abc |}"
+      textarea.selectionStart = 4;
+      textarea.selectionEnd = 4;
+
+      fireEvent.keyDown(textarea, { key: KEYS.ENTER });
+
+      // a closer only splits off as part of the pair convention — alone it
+      // just stays where it is
+      expect(textarea.value).toEqual("abc \n}");
+      expect(textarea.selectionStart).toEqual(5);
+      expect(textarea.selectionEnd).toEqual(5);
     });
 
     it("should behave natively on Enter with nothing special around it", () => {

@@ -957,31 +957,12 @@ export const textWysiwyg = ({
       !event.isComposing &&
       event.keyCode !== 229
     ) {
-      // smart newline: inherit the line's indent, deepen one level after an
-      // opener (`{ [ (`), and drop a closer found later on the line onto its
-      // own (base-indent) line — the `{|}` → block-with-caret convention
+      // smart newline: pair-shaped lines become a block with the caret
+      // inside, everything else just inherits the line's indent
       event.preventDefault();
-      const { value, selectionStart, selectionEnd } = editable;
-      const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
-      const lineBefore = value.slice(lineStart, selectionStart);
-      const lineIndent = (/^[ \t]*/.exec(lineBefore) as RegExpExecArray)[0];
-      const contentIndent =
-        lineIndent +
-        (/[(\[{]\s*$/.test(lineBefore) ? " ".repeat(getIndentSize()) : "");
-      const lineEnd = value.indexOf("\n", selectionEnd);
-      const rest = value.slice(
-        selectionEnd,
-        lineEnd === -1 ? undefined : lineEnd,
-      );
-      const insert =
-        `\n${contentIndent}` +
-        (/^[ \t]*[)\]}]/.test(rest) ? `\n${lineIndent}` : "");
-      const caret = selectionStart + 1 + contentIndent.length;
-      applyTextEdit(
-        value.slice(0, selectionStart) + insert + value.slice(selectionEnd),
-        caret,
-        caret,
-      );
+      if (handleOpenCloseBracketNewline() === -1) {
+        smartLineIndent();
+      }
     } else if (
       SELECTION_WRAP_PAIRS[event.key] &&
       // modifiers other than shift would be a chord, not a wrap; repeats
@@ -1015,6 +996,71 @@ export const textWysiwyg = ({
   // fixed indent width — always 4 spaces, never `\t`
   const DEFAULT_INDENT_SIZE = 4;
   const getIndentSize = () => DEFAULT_INDENT_SIZE;
+
+  /**
+   * Smart-newline handler for an open-close pair straddling the caret:
+   * `{|}` becomes a block with the caret inside (`{\n  |\n}`), and a caret
+   * parked right after a whole pair (`{}|`) has the closer pulled behind it
+   * first so both shapes land on that same convention.
+   *
+   * @returns -1 when the editable isn't in this handler's scope, so the
+   * caller falls back to the normal `smartLineIndent`.
+   */
+  const handleOpenCloseBracketNewline = (): number => {
+    const { value, selectionStart, selectionEnd } = editable;
+    const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
+    let lineBefore = value.slice(lineStart, selectionStart);
+    const lineIndent = (/^[ \t]*/.exec(lineBefore) as RegExpExecArray)[0];
+    // open-close-caret → open-caret-close: the line ends with a closer
+    // whose opener sits right before it, so move that closer to after the
+    // caret and compute exactly like the `{|}` case below
+    let closer = "";
+    if (
+      /[)\]}]$/.test(lineBefore) &&
+      /[(\[{]\s*$/.test(lineBefore.slice(0, -1))
+    ) {
+      closer = lineBefore.slice(-1);
+      lineBefore = lineBefore.slice(0, -1);
+    }
+    const lineEnd = value.indexOf("\n", selectionEnd);
+    const rest =
+      closer + value.slice(selectionEnd, lineEnd === -1 ? undefined : lineEnd);
+    // scope check: only the pair shapes — an opener with its closer still
+    // ahead (`{|}`), which a pulled-behind whole pair (`{}|`) always
+    // becomes; anything else leaves this handler untouched
+    if (!/[(\[{]\s*$/.test(lineBefore) || !/^[ \t]*[)\]}]/.test(rest)) {
+      return -1;
+    }
+    const contentIndent = lineIndent + " ".repeat(getIndentSize());
+    const insert = `\n${contentIndent}\n${lineIndent}`;
+    // the moved closer lands after the inserted block, caret in its middle
+    const caret = selectionStart - closer.length + 1 + contentIndent.length;
+    applyTextEdit(
+      value.slice(0, selectionStart - closer.length) +
+        insert +
+        closer +
+        value.slice(selectionEnd),
+      caret,
+      caret,
+    );
+    return 0;
+  };
+
+  /** normal smart newline: inherit the line's indent on the new line */
+  const smartLineIndent = () => {
+    const { value, selectionStart, selectionEnd } = editable;
+    const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
+    const lineBefore = value.slice(lineStart, selectionStart);
+    const lineIndent = (/^[ \t]*/.exec(lineBefore) as RegExpExecArray)[0];
+    const caret = selectionStart + 1 + lineIndent.length;
+    applyTextEdit(
+      value.slice(0, selectionStart) +
+        `\n${lineIndent}` +
+        value.slice(selectionEnd),
+      caret,
+      caret,
+    );
+  };
 
   const indent = () => {
     const size = getIndentSize();
