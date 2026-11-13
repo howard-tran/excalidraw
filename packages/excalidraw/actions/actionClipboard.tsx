@@ -1,5 +1,7 @@
-import { isTextElement } from "@excalidraw/element";
-import { getTextFromElements } from "@excalidraw/element";
+import { getGridTextFromElements, isTextElement } from "@excalidraw/element";
+
+// OLD: plain-concatenation helper (unused since copyText switched to grid layout)
+// import { getTextFromElements } from "@excalidraw/element";
 
 import { CODES, KEYS, isFirefox } from "@excalidraw/common";
 
@@ -268,7 +270,10 @@ export const copyText = register({
     });
 
     try {
-      copyTextToSystemClipboard(getTextFromElements(selectedElements));
+      // OLD: plain concatenation of text elements, separated by blank lines
+      // copyTextToSystemClipboard(getTextFromElements(selectedElements));
+      // NEW: grid-aligned plain text (columns padded to equal width)
+      copyTextToSystemClipboard(getGridTextFromElements(selectedElements));
     } catch (e) {
       throw new Error(t("errors.copyToSystemClipboardFailed"));
     }

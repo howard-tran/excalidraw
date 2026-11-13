@@ -629,4 +629,153 @@ export const getTextFromElements = (
   return text;
 };
 
+/**
+ * Cluster sorted x positions into per-column centers — each cluster is the
+ * mean of its member x's (ported from the `clusterX` prototype).
+ *
+ * Columns closer together than `xTolerance` collapse into one center, so
+ * slightly jittered cells across rows still line up.
+ */
+const clusterXPositions = (sortedX: readonly number[], xTolerance: number) => {
+  const centers: number[] = [];
+  let sum = 0;
+  let count = 0;
+  let prev = 0;
+  for (const x of sortedX) {
+    if (count > 0 && x - prev <= xTolerance) {
+      sum += x;
+      count++;
+    } else {
+      if (count > 0) {
+        centers.push(sum / count);
+      }
+      sum = x;
+      count = 1;
+    }
+    prev = x;
+  }
+  if (count > 0) {
+    centers.push(sum / count);
+  }
+  return centers;
+};
+
+/**
+ * Index of the column whose center is nearest to `x`, skipping columns
+ * already used in the current row (ported from the `findIdx` prototype).
+ *
+ * Returns -1 when every remaining free slot has no center — the caller
+ * falls back to the first free slot.
+ */
+const findNearestColumn = (
+  x: number,
+  centers: readonly number[],
+  colCount: number,
+  used: ReadonlySet<number>,
+) => {
+  let bestIdx = -1;
+  let bestDis = Infinity;
+  for (let c = 0; c < colCount; c++) {
+    if (used.has(c)) {
+      continue;
+    }
+    const dis = c < centers.length ? Math.abs(x - centers[c]) : Infinity;
+    if (dis < bestDis) {
+      bestDis = dis;
+      bestIdx = c;
+    }
+  }
+  return bestIdx;
+};
+
+/**
+ * Convert text elements into aligned plain text, laid out as a grid table
+ * (columns padded to equal width) based on each element's x/y position.
+ *
+ * Columns are derived by clustering every element's x position
+ * (`clusterXPositions` + `findNearestColumn`), so a row whose leading cells
+ * are missing still lands in the correct columns instead of shifting left.
+ *
+ * Replaces the old plain-concatenation behavior of copyText.
+ */
+export const getGridTextFromElements = (
+  elements: readonly ExcalidrawElement[],
+  options: {
+    lineTolerance?: number;
+    tablePad?: number;
+    xTolerance?: number;
+  } = {},
+) => {
+  const { lineTolerance = 1, tablePad = 2, xTolerance = 10 } = options;
+
+  const texts = elements
+    .filter(isTextElement)
+    .filter((el) => !el.isDeleted)
+    .map((el) => ({ x: el.x, y: el.y, text: el.text }));
+
+  if (texts.length === 0) {
+    return "";
+  }
+
+  // group elements into rows by y (with tolerance), each row sorted left → right
+  const sortedByY = [...texts].sort((a, b) => a.y - b.y);
+  const rows: { y: number; elements: typeof texts }[] = [];
+  for (const el of sortedByY) {
+    const row = rows[rows.length - 1];
+    if (row && Math.abs(el.y - row.y) <= lineTolerance) {
+      row.elements.push(el);
+    } else {
+      rows.push({ y: el.y, elements: [el] });
+    }
+  }
+  for (const row of rows) {
+    row.elements.sort((a, b) => a.x - b.x);
+  }
+
+  // column centers from every element's x, pooled across all rows
+  const sortedX = texts.map((t) => t.x).sort((a, b) => a - b);
+  const columnCenters = clusterXPositions(sortedX, xTolerance);
+
+  const rowCount = rows.length;
+  const colCount = Math.max(
+    columnCenters.length,
+    ...rows.map((row) => row.elements.length),
+  );
+
+  // fill the grid: each cell goes to its nearest column center (empty cells
+  // where a row has fewer columns; no two cells of a row share a column)
+  const grid = rows.map((row) => {
+    const cells = Array.from({ length: colCount }, () => "");
+    const used = new Set<number>();
+    for (const el of row.elements) {
+      let idx = findNearestColumn(el.x, columnCenters, colCount, used);
+      if (idx === -1) {
+        // more cells than clustered columns: take the first free slot
+        idx = cells.findIndex((_, c) => !used.has(c));
+      }
+      used.add(idx);
+      cells[idx] = el.text;
+    }
+    return cells;
+  });
+
+  // per-column max width
+  const colWidths = Array.from({ length: colCount }, () => 0);
+  for (let j = 0; j < colCount; j++) {
+    for (let i = 0; i < rowCount; i++) {
+      colWidths[j] = Math.max(colWidths[j], grid[i][j].length);
+    }
+  }
+
+  // pad cells, join rows, trim trailing whitespace per line
+  return grid
+    .map((cells) =>
+      cells
+        .map((text, j) => text.padEnd(colWidths[j] + tablePad, " "))
+        .join("")
+        .replace(/\s+$/, ""),
+    )
+    .join("\n");
+};
+
 export const DEFAULT_BOUND_TEXT_LABEL_POSITION = 0.5;
