@@ -59,7 +59,15 @@ Now i want to support intense coding and some math into this canvas, this is a r
 + Smart indent + selection wrap for normal text area
 + Latex math
 
-I make a promise to myself, i'll keep this fork up to date with the upstream. I love this software so much, if the upstream getting bloated one day the community can count on me! 
+I make a promise to myself, i'll keep this fork up to date with the upstream. I love this software so much, if the upstream getting bloated one day the community can count on me!
+
+### ▶️ A fork demonstration
+
+<a href="https://youtu.be/QE_zToxPJq0">
+  <img src="https://img.youtube.com/vi/QE_zToxPJq0/maxresdefault.jpg"
+       width="400"
+       alt="Demo Video">
+</a>
 
 ## ExcaliMath Features
 
